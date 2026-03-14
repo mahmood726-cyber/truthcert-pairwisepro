@@ -89,6 +89,10 @@ No data leave the browser at any point.
 
 ### Validation
 
+#### In-browser R validation (WebR)
+
+The application includes a WebR in-browser validation feature that loads the R metafor package directly in the browser via WebAssembly (WebR v0.4.4) and runs `metafor::rma(method="REML")` on the current dataset, enabling reviewers to verify results against the gold-standard R implementation without installing R.
+
 #### Numerical validation against R metafor
 
 Three datasets embedded in TruthCert-PairwisePro were validated against R 4.5.2 with metafor v4.8-0 and meta v8.2-1:
@@ -169,6 +173,8 @@ Table 3 compares TruthCert-PairwisePro against established meta-analysis softwar
 
 TruthCert-PairwisePro is designed for three primary use cases. First, **rapid evidence synthesis** by clinicians and guideline developers who need pooled estimates without programming. Second, **teaching meta-analysis methods**, where the interactive interface allows students to observe the effect of different estimators, bias corrections, and sensitivity analyses. Third, **integrated appraisal**, where teams require statistical synthesis, evidence certainty assessment, and preliminary health economic evaluation within a single reproducible workflow.
 
+Users should interpret pooled estimates in conjunction with heterogeneity diagnostics; when I-squared exceeds 75% or the prediction interval crosses the null, the pooled effect should be interpreted with caution.
+
 ---
 
 ## Discussion
@@ -214,6 +220,8 @@ The following limitations should be considered when using TruthCert-PairwisePro:
 **Live demo:** https://mahmood726-cyber.github.io/truthcert-pairwisepro/TruthCert-PairwisePro-v1.0.html
 
 **Licence:** MIT
+
+An `renv.lock` file is included in the repository to pin R package versions used in validation.
 
 **Software version:** 1.0
 
