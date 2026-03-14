@@ -845,6 +845,38 @@ Test B 2021,72,8,18,202</pre>
             <div id="liveValidationResults" style="margin-top: 16px;"></div>
             </div>
           </div>
+          <!-- WebR In-Browser Validation Card -->
+          <div class="card" style="margin-top: var(--space-6);">
+            <div class="card__header" style="background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); border-radius: 12px 12px 0 0; padding: 20px;">
+              <h2 class="card__title" style="color: white; margin: 0; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 1.5rem; font-weight: 700; font-family: monospace; background: rgba(255,255,255,0.2); padding: 2px 10px; border-radius: 6px;">R</span>
+                WebR: Verify with R metafor in Your Browser
+              </h2>
+              <p style="color: rgba(255,255,255,0.85); margin: 8px 0 0 0; font-size: 0.9rem;">
+                Run your current analysis data through R's metafor package directly in the browser via WebR (WebAssembly).
+                No server required &mdash; everything runs locally.
+              </p>
+            </div>
+            <div class="card__body">
+              <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap;">
+                <button class="btn btn--primary" id="webrRunBtn" onclick="runWebRValidation()" style="background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); border: none; font-weight: 600; padding: 10px 24px;">
+                  <span id="webrBtnLabel">Load R &amp; Validate</span>
+                </button>
+                <div id="webrProgressIndicator" style="display: none; align-items: center; gap: 8px;">
+                  <span class="spinner" style="width: 20px; height: 20px; border-width: 2px;"></span>
+                  <span id="webrProgressText" style="font-size: 0.9rem; color: var(--color-text-secondary);">Initializing WebR...</span>
+                </div>
+                <span id="webrBadge" style="display: none; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.5px;"></span>
+              </div>
+              <div id="webrResultsContainer"></div>
+              <div style="margin-top: 16px; padding: 12px 16px; background: var(--color-bg-secondary); border-radius: 8px; font-size: 0.82rem; color: var(--color-text-secondary); line-height: 1.5;">
+                <strong>How it works:</strong> WebR compiles R to WebAssembly, allowing R code to run entirely in your browser.
+                When metafor is available, results are <em>gold-standard</em> validation.
+                If metafor cannot be installed, a base-R DerSimonian-Laird fallback is used (labelled accordingly).
+                Typical first load takes 10&ndash;30 seconds depending on connection speed.
+              </div>
+            </div>
+          </div>
         </section>
         <section class="tab-panel" id="panel-crossdisciplinary">
           <div class="card">
@@ -27071,6 +27103,297 @@ document.getElementById('quickStartModal').addEventListener('click', function(e)
     closeQuickStartWizard();
   }
 });
+</script>
+<script>
+// =====================================================================
+// WebR Card Auto-Injector: re-injects WebR card whenever validation panel is rebuilt
+// =====================================================================
+(function() {
+  function injectWebrCard() {
+    var panel = document.getElementById('panel-validation');
+    if (!panel || document.getElementById('webrRunBtn')) return;
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.style.marginTop = 'var(--space-6)';
+    card.innerHTML = '<div class="card__header" style="background:linear-gradient(135deg,#7c3aed 0%,#a855f7 100%);border-radius:12px 12px 0 0;padding:20px;"><h2 class="card__title" style="color:white;margin:0;display:flex;align-items:center;gap:10px;"><span style="font-size:1.5rem;font-weight:700;font-family:monospace;background:rgba(255,255,255,0.2);padding:2px 10px;border-radius:6px;">R<\/span>WebR: Verify with R metafor in Your Browser<\/h2><p style="color:rgba(255,255,255,0.85);margin:8px 0 0;font-size:0.9rem;">Gold-standard validation: runs metafor::rma(method=&quot;REML&quot;) in your browser via WebR. No R installation needed.<\/p><\/div><div class="card__body"><div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;flex-wrap:wrap;"><button class="btn btn--primary" id="webrRunBtn" onclick="runWebRValidation()" style="background:linear-gradient(135deg,#7c3aed 0%,#a855f7 100%);border:none;font-weight:600;padding:10px 24px;"><span id="webrBtnLabel">Load R &amp; Validate<\/span><\/button><div id="webrProgressIndicator" style="display:none;align-items:center;gap:8px;"><span class="spinner" style="width:20px;height:20px;border-width:2px;"><\/span><span id="webrProgressText" style="font-size:0.9rem;">Initializing WebR...<\/span><\/div><span id="webrBadge" style="display:none;padding:4px 12px;border-radius:20px;font-size:0.8rem;font-weight:700;letter-spacing:0.5px;"><\/span><\/div><div id="webrResultsContainer"><\/div><div style="margin-top:16px;padding:12px 16px;background:var(--surface-overlay);border-radius:8px;font-size:0.82rem;color:var(--text-secondary);line-height:1.5;"><strong>How it works:<\/strong> WebR compiles R to WebAssembly. When metafor is available, results are <em>gold-standard REML<\/em> validation. If metafor cannot be installed, a base-R DerSimonian-Laird fallback is used. First load ~20-40s (cached after).<\/div><\/div>';
+    panel.appendChild(card);
+  }
+  // Observe the validation panel for innerHTML replacement
+  var observer = new MutationObserver(function() { setTimeout(injectWebrCard, 50); });
+  function startObserving() {
+    var panel = document.getElementById('panel-validation');
+    if (panel) {
+      observer.observe(panel, { childList: true });
+      injectWebrCard(); // initial injection
+    } else {
+      setTimeout(startObserving, 500);
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startObserving);
+  } else {
+    startObserving();
+  }
+})();
+
+// =====================================================================
+// WebR In-Browser Validation (lazy-loaded)
+// Runs R metafor or base-R DL fallback entirely in the browser via WASM
+// =====================================================================
+var _webrInstance = null;
+var _webrLoading = false;
+
+async function runWebRValidation() {
+  var btn = document.getElementById('webrRunBtn');
+  var btnLabel = document.getElementById('webrBtnLabel');
+  var progress = document.getElementById('webrProgressIndicator');
+  var progressText = document.getElementById('webrProgressText');
+  var badge = document.getElementById('webrBadge');
+  var container = document.getElementById('webrResultsContainer');
+
+  if (!btn || !container) return;
+
+  // Check that analysis has been run
+  if (typeof AppState === 'undefined' || !AppState.results || !AppState.results.yi || !AppState.results.vi) {
+    container.innerHTML = '<div class="alert alert--warning" style="margin-top:8px;">' +
+      '<span class="alert__icon">&#x26A0;&#xFE0F;</span>' +
+      '<div class="alert__content"><div class="alert__text">' +
+      'Run a meta-analysis first. WebR validation compares your current results against R.' +
+      '</div></div></div>';
+    return;
+  }
+
+  var yi = AppState.results.yi;
+  var vi = AppState.results.vi;
+  if (!yi || !vi || yi.length < 2) {
+    container.innerHTML = '<div class="alert alert--warning" style="margin-top:8px;">' +
+      '<span class="alert__icon">&#x26A0;&#xFE0F;</span>' +
+      '<div class="alert__content"><div class="alert__text">' +
+      'At least 2 valid studies are required for WebR validation.' +
+      '</div></div></div>';
+    return;
+  }
+
+  // Disable button, show progress
+  btn.disabled = true;
+  btnLabel.textContent = 'Running...';
+  progress.style.display = 'flex';
+  badge.style.display = 'none';
+  container.innerHTML = '';
+
+  try {
+    // Step 1: Load WebR if not already loaded
+    if (!_webrInstance) {
+      if (_webrLoading) {
+        progressText.textContent = 'WebR is already loading, please wait...';
+        return;
+      }
+      _webrLoading = true;
+      progressText.textContent = 'Downloading WebR runtime (~15 MB)...';
+
+      var WebR;
+      try {
+        var mod = await import('https://webr.r-wasm.org/v0.4.4/webr.mjs');
+        WebR = mod.WebR;
+      } catch (importErr) {
+        throw new Error('Failed to load WebR module. Check internet connection. ' + importErr.message);
+      }
+
+      progressText.textContent = 'Initializing R interpreter...';
+      _webrInstance = new WebR();
+      await _webrInstance.init();
+      _webrLoading = false;
+    }
+
+    var webR = _webrInstance;
+    var usedMetafor = false;
+    var rResultArray = null;
+
+    // Build yi/vi strings for R
+    var yiStr = yi.map(function(v) { return v.toFixed(12); }).join(', ');
+    var viStr = vi.map(function(v) { return v.toFixed(12); }).join(', ');
+
+    // Step 2: Try metafor
+    progressText.textContent = 'Installing metafor package (first run may take 20s)...';
+    try {
+      await webR.evalR('webr::install("metafor", quiet = TRUE)');
+      await webR.evalR('library(metafor)');
+      progressText.textContent = 'Running metafor::rma() on your data...';
+
+      var rCode = 'yi <- c(' + yiStr + ')\n' +
+        'vi <- c(' + viStr + ')\n' +
+        'fit <- rma(yi, vi, method="REML")\n' +
+        'c(fit$beta[1], fit$se, fit$tau2, fit$I2, fit$QE, fit$QEp, fit$ci.lb, fit$ci.ub, fit$k, 0)';
+
+      var result = await webR.evalR(rCode);
+      rResultArray = await result.toArray();
+      usedMetafor = true;
+    } catch (metaforErr) {
+      // Step 3: Fallback to base R
+      progressText.textContent = 'metafor unavailable, running base-R DL fallback...';
+      try {
+        var fallbackCode = 'yi <- c(' + yiStr + ')\n' +
+          'vi <- c(' + viStr + ')\n' +
+          'wi <- 1/vi\n' +
+          'theta_fe <- sum(wi * yi) / sum(wi)\n' +
+          'Q <- sum(wi * (yi - theta_fe)^2)\n' +
+          'k <- length(yi)\n' +
+          'C_val <- sum(wi) - sum(wi^2)/sum(wi)\n' +
+          'tau2 <- max(0, (Q - (k-1)) / C_val)\n' +
+          'wi_re <- 1 / (vi + tau2)\n' +
+          'theta_re <- sum(wi_re * yi) / sum(wi_re)\n' +
+          'se_re <- sqrt(1/sum(wi_re))\n' +
+          'I2 <- ifelse(Q > (k-1), max(0, (Q - (k-1))/Q * 100), 0)\n' +
+          'c(theta_re, se_re, tau2, I2, Q, 1-pchisq(Q,k-1), theta_re - 1.96*se_re, theta_re + 1.96*se_re, k, 1)';
+
+        var fallbackResult = await webR.evalR(fallbackCode);
+        rResultArray = await fallbackResult.toArray();
+        usedMetafor = false;
+      } catch (baseRErr) {
+        throw new Error('Both metafor and base-R failed: ' + baseRErr.message);
+      }
+    }
+
+    if (!rResultArray || rResultArray.length < 10) {
+      throw new Error('Unexpected R output (expected 10 values, got ' + (rResultArray ? rResultArray.length : 0) + ')');
+    }
+
+    // Step 4: Extract R results
+    var rPooled = rResultArray[0];
+    var rSE = rResultArray[1];
+    var rTau2 = rResultArray[2];
+    var rI2 = rResultArray[3];
+    var rQ = rResultArray[4];
+    var rQp = rResultArray[5];
+    var rCILower = rResultArray[6];
+    var rCIUpper = rResultArray[7];
+    var rK = rResultArray[8];
+    var wasFallback = rResultArray[9] === 1;
+
+    // Step 5: Extract JS results
+    var jsPooled = AppState.results.pooled ? AppState.results.pooled.theta : NaN;
+    var jsSE = AppState.results.pooled ? AppState.results.pooled.se : NaN;
+    var jsTau2 = AppState.results.tau2 != null ? AppState.results.tau2 : NaN;
+    var jsI2 = AppState.results.het ? AppState.results.het.I2 : NaN;
+    var jsQ = AppState.results.het ? AppState.results.het.Q : NaN;
+    var jsQp = AppState.results.het ? AppState.results.het.p_Q : NaN;
+    var jsCILower = AppState.results.pooled ? AppState.results.pooled.ci_lower : NaN;
+    var jsCIUpper = AppState.results.pooled ? AppState.results.pooled.ci_upper : NaN;
+
+    // Step 6: Build comparison table
+    var tolerance = 1e-4;
+    var rows = [
+      { label: 'Pooled Estimate', js: jsPooled, r: rPooled, digits: 6 },
+      { label: 'Standard Error', js: jsSE, r: rSE, digits: 6 },
+      { label: 'tau-squared', js: jsTau2, r: rTau2, digits: 6 },
+      { label: 'I-squared (%)', js: jsI2, r: rI2, digits: 2 },
+      { label: 'Q Statistic', js: jsQ, r: rQ, digits: 4 },
+      { label: 'Q p-value', js: jsQp, r: rQp, digits: 6 },
+      { label: '95% CI Lower', js: jsCILower, r: rCILower, digits: 6 },
+      { label: '95% CI Upper', js: jsCIUpper, r: rCIUpper, digits: 6 }
+    ];
+
+    var passCount = 0;
+    var totalCount = rows.length;
+
+    var html = '';
+
+    // Badge
+    if (usedMetafor) {
+      badge.style.display = 'inline-block';
+      badge.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+      badge.style.color = 'white';
+      badge.textContent = 'GOLD STANDARD (metafor)';
+    } else {
+      badge.style.display = 'inline-block';
+      badge.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+      badge.style.color = 'white';
+      badge.textContent = 'FALLBACK (base R DL)';
+    }
+
+    html += '<table style="width:100%;border-collapse:collapse;font-size:0.9rem;margin-top:12px;">';
+    html += '<thead><tr style="background:var(--color-bg-secondary);border-bottom:2px solid var(--color-border);">';
+    html += '<th style="padding:12px;text-align:left;">Metric</th>';
+    html += '<th style="padding:12px;text-align:right;">JavaScript</th>';
+    html += '<th style="padding:12px;text-align:right;">R' + (usedMetafor ? ' (metafor)' : ' (base R)') + '</th>';
+    html += '<th style="padding:12px;text-align:right;">Difference</th>';
+    html += '<th style="padding:12px;text-align:center;">Status</th>';
+    html += '</tr></thead><tbody>';
+
+    for (var idx = 0; idx < rows.length; idx++) {
+      var row = rows[idx];
+      var jsVal = row.js;
+      var rVal = row.r;
+      var diff = Math.abs(jsVal - rVal);
+      var relTol = Math.abs(rVal) > 1e-10 ? diff / Math.abs(rVal) : diff;
+      var passed = diff < tolerance || relTol < 1e-3;
+      if (passed) passCount++;
+
+      var statusColor = passed ? '#10b981' : '#ef4444';
+      var statusText = passed ? 'PASS' : 'DIFF';
+
+      html += '<tr style="border-bottom:1px solid var(--color-border);">';
+      html += '<td style="padding:10px;font-weight:500;">' + _webrEsc(row.label) + '</td>';
+      html += '<td style="padding:10px;text-align:right;font-family:monospace;">' + (isFinite(jsVal) ? jsVal.toFixed(row.digits) : 'N/A') + '</td>';
+      html += '<td style="padding:10px;text-align:right;font-family:monospace;">' + (isFinite(rVal) ? rVal.toFixed(row.digits) : 'N/A') + '</td>';
+      html += '<td style="padding:10px;text-align:right;font-family:monospace;font-size:0.82rem;color:var(--color-text-secondary);">' + (isFinite(diff) ? diff.toExponential(2) : 'N/A') + '</td>';
+      html += '<td style="padding:10px;text-align:center;color:' + statusColor + ';font-weight:600;">' + statusText + '</td>';
+      html += '</tr>';
+    }
+
+    html += '</tbody></table>';
+
+    // Summary bar
+    var allPassed = passCount === totalCount;
+    var summaryBg = allPassed ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+    html += '<div style="background:' + summaryBg + ';color:white;padding:16px;border-radius:8px;margin-top:16px;text-align:center;">';
+    html += '<div style="font-size:1.3rem;font-weight:700;">' + passCount + '/' + totalCount + ' metrics match</div>';
+    html += '<div style="font-size:0.9rem;opacity:0.9;margin-top:4px;">';
+    if (usedMetafor) {
+      html += 'Validated against R metafor::rma(method=&quot;REML&quot;) via WebR v0.4.4';
+    } else {
+      html += 'Validated against base R DerSimonian-Laird (metafor not available)';
+    }
+    html += ' &mdash; k=' + Math.round(rK) + ' studies</div></div>';
+
+    // Note about tau2 method mismatch if applicable
+    var currentMethod = (AppState.settings && AppState.settings.tau2Method) ? AppState.settings.tau2Method : 'DL';
+    if (usedMetafor && currentMethod !== 'REML') {
+      html += '<div style="margin-top:12px;padding:10px 14px;background:var(--color-bg-secondary);border-left:3px solid #f59e0b;border-radius:4px;font-size:0.85rem;color:var(--color-text-secondary);">';
+      html += '<strong>Note:</strong> Your current tau-squared estimator is <strong>' + _webrEsc(currentMethod) + '</strong>, ';
+      html += 'while metafor used <strong>REML</strong>. Differences in pooled estimate and CI are expected. ';
+      html += 'Switch to REML in settings for a direct comparison.';
+      html += '</div>';
+    }
+    if (!usedMetafor && currentMethod !== 'DL') {
+      html += '<div style="margin-top:12px;padding:10px 14px;background:var(--color-bg-secondary);border-left:3px solid #f59e0b;border-radius:4px;font-size:0.85rem;color:var(--color-text-secondary);">';
+      html += '<strong>Note:</strong> Your current tau-squared estimator is <strong>' + _webrEsc(currentMethod) + '</strong>, ';
+      html += 'while the base-R fallback used <strong>DL</strong>. Differences are expected. ';
+      html += '</div>';
+    }
+
+    container.innerHTML = html;
+    progressText.textContent = 'Done!';
+    setTimeout(function() { progress.style.display = 'none'; }, 1500);
+  } catch (err) {
+    container.innerHTML = '<div class="alert alert--danger" style="margin-top:8px;">' +
+      '<span class="alert__icon">&#x274C;</span>' +
+      '<div class="alert__content"><div class="alert__text">' +
+      '<strong>WebR Error:</strong> ' + _webrEsc(err.message || String(err)) +
+      '</div></div></div>';
+    progress.style.display = 'none';
+    _webrLoading = false;
+  } finally {
+    btn.disabled = false;
+    btnLabel.textContent = _webrInstance ? 'Re-run Validation' : 'Load R & Validate';
+  }
+}
+
+// Minimal HTML escaping for WebR output
+function _webrEsc(str) {
+  if (typeof str !== 'string') return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
 </script>
 <script src="expert_upgrade_additions.js"></script>
 <script src="wasm/advanced_wasm_bridge.js"></script>
