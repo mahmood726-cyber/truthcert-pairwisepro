@@ -17,7 +17,7 @@ Mahmood Ahmad ^1,2^, Niraj Kumar ^1^, Bilaal Dar ^3^, Laiba Khan ^1^, Andrew Woo
 
 **Methods:** TruthCert-PairwisePro is implemented as a client-side web application (27,086 lines of HTML; 23,334 lines of JavaScript) requiring no server infrastructure or installation. The statistical engine supports binary (OR, RR, RD), continuous (MD, SMD), hazard ratio, proportion, correlation, and generic effect measures, with 17 heterogeneity variance (tau-squared) estimators and 12 publication bias methods. A novel 12-point TruthCert threat assessment produces categorical verdicts (STABLE, MODERATE, EXPOSED, UNCERTAIN) that gate access to an integrated cost-effectiveness module (S14-HTA+). Numerical validation was performed against the R metafor package (v4.8-0) across three benchmark datasets; health technology assessment outputs were compared against TreeAge Pro 2023.
 
-**Results:** Of 112 validation comparisons against metafor, 108 passed (96.4%), with all core estimators (DL, REML, ML, HE), pooled estimates, confidence intervals, and heterogeneity statistics matching to within relative error < 10^-5^. The four partial matches involved advanced iterative estimators (PM, HS, SJ, EB) and reflected convergence threshold differences rather than algorithmic errors. HTA module outputs matched TreeAge Pro with mean absolute ICER difference < 0.01% across three test scenarios. The application runs offline after initial load and exports results to R, CSV, Excel, JSON, and PDF.
+**Results:** Of 112 validation comparisons against metafor, 108 passed (96.4%). Core estimators (DL, REML, ML, HE), pooled estimates, confidence intervals, and heterogeneity statistics matched within relative error < 10^-5^. The four partial matches involved advanced iterative estimators (PM, HS, SJ, EB), which showed convergence-dependent differences attributable to differing iteration thresholds and initialisation strategies between the JavaScript and R implementations. HTA module outputs matched TreeAge Pro with mean absolute ICER difference < 0.01% across three test scenarios. The application runs offline after initial load and exports results to R, CSV, Excel, JSON, and PDF.
 
 **Conclusions:** TruthCert-PairwisePro provides a validated, zero-installation platform for pairwise meta-analysis with integrated evidence appraisal and health economic assessment. It is freely available under the MIT licence.
 
@@ -29,7 +29,7 @@ pairwise meta-analysis, heterogeneity, publication bias, evidence synthesis, hea
 
 ## Introduction
 
-Systematic reviews with meta-analysis remain the highest level of evidence for informing clinical and policy decisions [1,11]. Conducting a rigorous meta-analysis, however, requires software that can estimate pooled effects, quantify heterogeneity, assess publication bias, evaluate evidence certainty, and---increasingly---translate findings into health economic terms. Existing tools address these needs partially. The R packages metafor [2] and meta [10] provide comprehensive statistical functionality but require programming expertise. Comprehensive Meta-Analysis (CMA) [13] and RevMan (Cochrane Collaboration) offer graphical interfaces but require desktop installation, and CMA requires a commercial licence. None of these platforms integrate statistical synthesis, structured evidence appraisal, and cost-effectiveness analysis within a single workflow.
+Systematic reviews with meta-analysis remain the highest level of evidence for informing clinical and policy decisions [11,16]. Conducting a rigorous meta-analysis, however, requires software that can estimate pooled effects, quantify heterogeneity, assess publication bias, evaluate evidence certainty, and---increasingly---translate findings into health economic terms. Existing tools address these needs partially. The R packages metafor [2] and meta [10] provide comprehensive statistical functionality but require programming expertise. Comprehensive Meta-Analysis (CMA) [13] and RevMan (Cochrane Collaboration) offer graphical interfaces but require desktop installation, and CMA requires a commercial licence. None of these platforms integrate statistical synthesis, structured evidence appraisal, and cost-effectiveness analysis within a single workflow.
 
 Browser-based applications offer practical advantages for evidence synthesis: they require no installation, run on any operating system with a modern browser, process data entirely on the client side (avoiding data governance concerns), and can function offline after initial load. These properties are particularly relevant for systematic review teams in resource-limited settings or institutions with restrictive software installation policies.
 
@@ -55,17 +55,19 @@ The engine implements the following statistical methods:
 
 **Heterogeneity estimation.** Seventeen tau-squared estimators are implemented: DerSimonian-Laird (DL) [1], restricted maximum likelihood (REML), maximum likelihood (ML), Paule-Mandel (PM) [9], Paule-Mandel with modification (PMM), Hunter-Schmidt (HS), Hunter-Schmidt with k correction (HSk), Sidik-Jonkman (SJ), Hedges (HE), empirical Bayes (EB), generalised Q-statistic (GENQ, GENQM), profile likelihood (PL), iterated DL (DL2), Cochran ANOVA (CA), Breslow-Mallows-Moments (BMM), and Q-generalised (QG). Heterogeneity is summarised via Q, I-squared [3], H-squared, and prediction intervals.
 
-**Confidence intervals.** Standard Wald-type intervals using normal critical values and Hartung-Knapp-Sidik-Jonkman (HKSJ) adjusted intervals using the t-distribution [8]. Prediction intervals follow the Higgins-Thompson-Spiegelhalter formulation.
+**Confidence intervals.** Standard Wald-type intervals using normal critical values and Hartung-Knapp-Sidik-Jonkman (HKSJ) adjusted intervals using the t-distribution [8]. Prediction intervals follow the Higgins-Thompson-Spiegelhalter formulation [22].
 
-**Publication bias.** Twelve methods are available: Egger's regression [4], Peters' test, Harbord's test, Begg's rank correlation, trim-and-fill (L0 and R0 estimators) [5], PET-PEESE [14], step and beta selection models, Copas selection model sensitivity analysis [6], Henmi-Copas adjustment, limit meta-analysis, and funnel plot asymmetry visualisation.
+**Publication bias.** Twelve methods are available: Egger's regression [4], Peters' regression test [17], Harbord's score test [18], Begg's rank correlation [19], trim-and-fill (L0 and R0 estimators) [5], PET-PEESE [14], step and beta selection models, Copas selection model sensitivity analysis [6], Henmi-Copas adjustment [20] (note: the implementation uses a heuristic approximation to the full Henmi-Copas likelihood, suitable for sensitivity exploration but not as a definitive bias-corrected estimate), limit meta-analysis [21], and funnel plot asymmetry visualisation.
 
-**Clinical translation.** Number needed to treat/harm (NNT/NNH) with confidence intervals, E-values for unmeasured confounding [15], and GRADE certainty of evidence assessment [12].
+**Clinical translation.** Number needed to treat/harm (NNT/NNH) with confidence intervals, E-values for unmeasured confounding [15], and GRADE certainty of evidence assessment [23,12].
 
 **Reproducibility.** A seedable linear congruential pseudo-random number generator is available for bootstrap and simulation procedures, enabling deterministic replication when a seed is specified.
 
 #### TruthCert verdict system
 
-The TruthCert module implements a 12-point threat assessment that evaluates the following dimensions: (1) underpowered analysis (total N below optimal information size), (2) sparse evidence (k < 5), (3) high heterogeneity (I-squared > 75%), (4) inconsistent direction (prediction interval crosses null), (5) small-study effects (Egger p < 0.10), (6) publication bias (trim-and-fill changes conclusion), (7) fragility (single study drives result), (8) imprecision (confidence interval crosses clinical threshold), (9) residual confounding (E-value < 2), (10) single large trial dominance (>50% weight), (11) risk of bias (high RoB in majority of studies), and (12) temporal instability (cumulative meta-analysis unstable). Each threat is assigned a severity weight of 1 or 2. The cumulative severity score maps to five verdict categories: STABLE (0--2), STABLE-NID (0--2 with prediction interval concern), MODERATE (3--5), EXPOSED (6--8), and UNCERTAIN (9+). Verdicts are assigned programmatically via a decision tree that considers not only total severity but also the pattern and combination of triggered threats.
+The TruthCert module implements a 12-point threat assessment that evaluates the following dimensions: (1) evidence base (insufficient studies, k below configurable minimum; weight 2), (2) estimator agreement (spread across tau-squared estimators exceeds equivalence margin delta; weight 2), (3) heterogeneity (I-squared exceeds configurable threshold; weight 1), (4) tau-squared stability (iterative estimates fail to converge; weight 1), (5) publication bias (detected by Egger's or trim-and-fill; weight 1), (6) breakdown robustness (fraction of studies needed to nullify result below threshold; weight 1), (7) fragility index (FI below configurable minimum; weight 1), (8) prediction interval (crosses the null; weight 1), (9) permutation confidence interval (materially different from standard CI; weight 1), (10) influence diagnostics (number of flagged influential studies exceeds threshold; weight 1), (11) risk-of-bias sensitivity (result changes materially after excluding high-RoB studies; weight 1), and (12) optimal information size (OIS not met; weight 1). The maximum cumulative severity is 13 points.
+
+Verdict assignment uses a multi-factor decision tree in `determineVerdict()` rather than simple severity-score cut-offs. The tree first classifies categorical threats via `checkThreatsV6()` (small k, high heterogeneity, publication bias, estimator instability) and counts the number triggered. It then evaluates: (a) whether the confidence interval excludes the null, (b) precision (CI width relative to the equivalence margin delta, classified as good, adequate, or poor), (c) an equivalence test (TOST at alpha = 0.05), (d) whether the effect size falls within or beyond 1.5 times delta, and (e) the ratio of effect size to CI width. The decision rules are: k < 3 forces UNCERTAIN; two or more categorical threats yield MODERATE (if significant with good precision and large effect) or EXPOSED otherwise; one threat yields MODERATE, EXPOSED, or UNCERTAIN depending on precision and significance; zero threats yield STABLE (significant with good or adequate precision), STABLE-NID (equivalence holds or effect is near-null with adequate precision), MODERATE (non-significant but precise), or UNCERTAIN (poor precision). The five verdict categories are: STABLE, STABLE-NID (no important difference), MODERATE, EXPOSED, and UNCERTAIN.
 
 #### S14-HTA+ module
 
@@ -127,7 +129,7 @@ Table 1 summarises the validation results against R metafor.
 | Heterogeneity (I-squared, Q) | 12 | 12 | 100% |
 | **Total** | **112** | **108** | **96.4%** |
 
-All effect size calculations, core tau-squared estimators, pooled estimates, confidence intervals, and heterogeneity statistics matched R metafor to within relative error < 10^-5^. The four partial matches involved the BCG dataset (k = 6) under iterative estimators PM, HS, SJ, and EB, where convergence threshold differences between the JavaScript and R implementations produced small numerical discrepancies. These estimators are less commonly used in practice; the standard choices (REML, DL) matched exactly.
+All effect size calculations, core tau-squared estimators (DL, REML, ML, HE), pooled estimates, confidence intervals, and heterogeneity statistics matched R metafor within relative error < 10^-5^. The four partial matches involved the BCG dataset (k = 6) under advanced iterative estimators (PM, HS, SJ, EB), where convergence threshold and initialisation differences between the JavaScript and R implementations produced larger discrepancies. These estimators use iterative algorithms whose final values are sensitive to starting points and convergence criteria; users requiring exact replication of these specific estimators should cross-validate against metafor using the exported R script. The standard estimators most commonly used in practice (REML, DL, ML, HE) matched exactly across all three datasets.
 
 For the SGLT2_ACM dataset, the REML pooled log(OR) was -0.1096 (SE 0.0387, 95% CI: -0.1854 to -0.0338), I-squared = 0.00%, Q = 1.656 (p = 0.799), matching R metafor to six decimal places. HKSJ-adjusted confidence intervals (-0.1787 to -0.0405, p = 0.0117) also matched exactly.
 
@@ -158,8 +160,8 @@ Table 3 compares TruthCert-PairwisePro against established meta-analysis softwar
 | Interactive GUI | Yes (browser) | No (CLI) | No (CLI) | Yes (desktop) | Yes (desktop) |
 | No installation required | Yes | No | No | No | No |
 | Offline capable | Yes | Yes | Yes | Yes | Yes |
-| 17 tau-squared estimators | Yes | Yes | Yes | Partial | No |
-| HKSJ correction | Yes | Yes | Yes | Yes | No |
+| 17 tau-squared estimators | Yes | Yes | Partial (~12) | Partial | No |
+| HKSJ correction | Yes | Yes | Yes | Yes | Yes |
 | Trim-and-fill | Yes | Yes | Yes | Yes | Yes |
 | Copas selection model | Yes | Yes | No | No | No |
 | PET-PEESE | Yes | Manual | No | No | No |
@@ -179,7 +181,7 @@ Users should interpret pooled estimates in conjunction with heterogeneity diagno
 
 ## Discussion
 
-TruthCert-PairwisePro v1.0 provides a validated, browser-based platform for pairwise meta-analysis that integrates statistical estimation, publication bias assessment, evidence verdict classification, and health technology appraisal. The numerical validation against R metafor demonstrates agreement within < 10^-5^ relative error for all core estimators, and the HTA module matches TreeAge Pro within 0.01% for ICER computations.
+TruthCert-PairwisePro v1.0 provides a validated, browser-based platform for pairwise meta-analysis that integrates statistical estimation, publication bias assessment, evidence verdict classification, and health technology appraisal. The numerical validation against R metafor demonstrates agreement within relative error < 10^-5^ for core estimators (DL, REML, ML, HE), with iterative estimators (PM, HS, SJ, EB) showing larger convergence-dependent differences on some datasets. The HTA module matches TreeAge Pro within 0.01% for ICER computations.
 
 The TruthCert verdict system represents a structured approach to evidence appraisal that operationalises multiple threats into a single categorical assessment. By gating HTA access on the verdict, the platform discourages cost-effectiveness analyses on unreliable evidence bodies---a workflow safeguard absent from existing tools.
 
@@ -195,7 +197,7 @@ The following limitations should be considered when using TruthCert-PairwisePro:
 
 3. **No network meta-analysis.** The platform is restricted to pairwise comparisons. Network meta-analysis, which is increasingly required for health technology assessments comparing multiple interventions, is not supported. This is planned for a future version.
 
-4. **TruthCert thresholds are empirically calibrated.** The severity weights and verdict boundary thresholds (0--2 for STABLE, 3--5 for MODERATE, etc.) were calibrated through iterative testing rather than derived from formal decision-theoretic or information-theoretic principles. Different calibrations may be appropriate for different evidence domains.
+4. **TruthCert thresholds are empirically calibrated.** The verdict decision tree's thresholds---equivalence margin (delta), precision tiers, threat classification rules, and the branching logic that maps threat counts and precision levels to verdict categories---were calibrated through iterative testing on benchmark datasets rather than derived from formal decision-theoretic or information-theoretic principles. Different calibrations may be appropriate for different evidence domains.
 
 5. **Simplified HTA models.** The S14-HTA+ module uses simplified decision-tree structures rather than full Markov cohort or microsimulation models. It is suitable for preliminary cost-effectiveness screening but should not replace dedicated health economic modelling software (e.g., TreeAge, CHEERS-compliant Excel models) for full economic evaluations.
 
@@ -282,3 +284,19 @@ The authors thank the developers of metafor, Plotly.js, and the R statistical co
 [14] Stanley TD, Doucouliagos H. Meta-regression approximations to reduce publication selection bias. Res Synth Methods. 2014;5(1):60-78. https://doi.org/10.1002/jrsm.1095
 
 [15] VanderWeele TJ, Ding P. Sensitivity analysis in observational research: introducing the E-value. Ann Intern Med. 2017;167(4):268-274. https://doi.org/10.7326/M16-2607
+
+[16] Sackett DL, Rosenberg WMC, Gray JAM, Haynes RB, Richardson WS. Evidence based medicine: what it is and what it isn't. BMJ. 1996;312(7023):71-72. https://doi.org/10.1136/bmj.312.7023.71
+
+[17] Peters JL, Sutton AJ, Jones DR, Abrams KR, Rushton L. Comparison of two methods to detect publication bias in meta-analysis. JAMA. 2006;295(6):676-680. https://doi.org/10.1001/jama.295.6.676
+
+[18] Harbord RM, Egger M, Sterne JAC. A modified test for small-study effects in meta-analyses of controlled trials with binary endpoints. Stat Med. 2006;25(20):3443-3457. https://doi.org/10.1002/sim.2380
+
+[19] Begg CB, Mazumdar M. Operating characteristics of a rank correlation test for publication bias. Biometrics. 1994;50(4):1088-1101. https://doi.org/10.2307/2533446
+
+[20] Henmi M, Copas JB. Confidence intervals for random effects meta-analysis and robustness to publication bias. Stat Med. 2010;29(29):2969-2983. https://doi.org/10.1002/sim.4029
+
+[21] Rucker G, Schwarzer G, Carpenter JR, Binder H, Schumacher M. Treatment-effect estimates adjusted for small-study effects via a limit meta-analysis. Biostatistics. 2011;12(1):122-142. https://doi.org/10.1093/biostatistics/kxq046
+
+[22] Higgins JPT, Thompson SG, Spiegelhalter DJ. A re-evaluation of random-effects meta-analysis. J R Stat Soc Ser A Stat Soc. 2009;172(1):137-159. https://doi.org/10.1111/j.1467-985X.2008.00552.x
+
+[23] Guyatt GH, Oxman AD, Vist GE, et al. GRADE: an emerging consensus on rating quality of evidence and strength of recommendations. BMJ. 2008;336(7650):924-926. https://doi.org/10.1136/bmj.39489.470347.AD
